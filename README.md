@@ -197,16 +197,6 @@ python scripts/run_evaluation.py
 - 查询执行与必要字段检查；
 - 复杂任务的证据数量和结论完整性。
 
-评测报告必须由当前代码和固定数据集生成。项目不预置无法复现的准确率、性能或线上业务指标。
-
-## 可扩展方向
-
-- 将内置混合检索替换为 Elasticsearch 与向量数据库，并接入专用 Reranker。
-- 将内存幂等与 Trace 存储替换为 Redis、PostgreSQL 和 LangGraph Checkpointer。
-- 使用数据网关实现列级脱敏、行级权限和查询审计审批。
-- 增加指标版本发布、血缘追踪、歧义澄清和人工反馈闭环。
-- 接入 OpenTelemetry、Grafana 和告警平台，完善时延、错误率、Token 成本与队列水位监控。
-- 扩充真实业务黄金集，按检索、SQL、执行结果和最终结论分层定位错误。
 
 ## 设计原则
 
