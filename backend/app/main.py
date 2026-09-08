@@ -16,6 +16,7 @@ from app.core.config import get_settings
 from app.core.errors import ClarificationRequired, InsightBIError, PermissionDenied, UnsafeSqlError
 from app.db.bootstrap import bootstrap_database
 from app.db.session import engine
+from app.services.idempotency import IdempotencyStore, RedisIdempotencyStore
 from app.services.security import RedisSlidingWindowRateLimiter, SlidingWindowRateLimiter
 from app.services.tasks import AsyncTaskManager
 
@@ -38,11 +39,13 @@ async def lifespan(app: FastAPI):
         app.state.rate_limiter = RedisSlidingWindowRateLimiter(
             redis_client, settings.rate_limit_per_minute
         )
+        app.state.idempotency_store = RedisIdempotencyStore(redis_client)
     except RedisError:
         logging.getLogger(__name__).warning(
             "Redis unavailable; rate limiting falls back to a single-instance window"
         )
         app.state.rate_limiter = SlidingWindowRateLimiter(settings.rate_limit_per_minute)
+        app.state.idempotency_store = IdempotencyStore()
     app.state.task_manager = AsyncTaskManager(app.state.orchestrator)
     yield
 

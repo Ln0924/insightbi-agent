@@ -8,7 +8,6 @@ from fastapi.responses import StreamingResponse
 
 from app.api.dependencies import current_user
 from app.core.models import QueryRequest, QueryResponse, UserContext
-from app.services.idempotency import idempotency_store
 from app.services.security import make_idempotency_key
 
 router = APIRouter(prefix="/api/v1", tags=["智能问数"])
@@ -35,16 +34,17 @@ def query(
     if not allowed:
         raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail="请求过于频繁", headers={"Retry-After": str(retry_after)})
     key = payload.idempotency_key or make_idempotency_key(payload.question, user, payload.session_id)
-    state = idempotency_store.begin(key)
+    store = request.app.state.idempotency_store
+    state = store.begin(key)
     if state == "completed":
-        return idempotency_store.get(key)
+        return store.get(key)
     if state == "running":
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail={"message": "相同任务正在执行", "idempotency_key": key})
     try:
         response = request.app.state.orchestrator.run(payload.question, user)
-        idempotency_store.complete(key, response)
+        store.complete(key, response)
     except Exception:
-        idempotency_store.fail(key)
+        store.fail(key)
         raise
     if payload.stream:
         return StreamingResponse(_sse(response), media_type="text/event-stream")

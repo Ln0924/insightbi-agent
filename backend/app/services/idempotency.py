@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import json
 from threading import Lock
+
+from redis.exceptions import RedisError
 
 from app.core.models import QueryResponse
 
@@ -35,3 +38,51 @@ class IdempotencyStore:
 
 idempotency_store = IdempotencyStore()
 
+
+class RedisIdempotencyStore:
+    """跨实例幂等状态；创建操作依赖 Redis SET NX 保证原子性。"""
+
+    def __init__(self, client, ttl_seconds: int = 3600):
+        self.client = client
+        self.ttl = ttl_seconds
+        self.fallback = IdempotencyStore()
+
+    def _key(self, key: str) -> str:
+        return f"idempotency:{key}"
+
+    def begin(self, key: str) -> str:
+        redis_key = self._key(key)
+        try:
+            created = self.client.set(redis_key, "running", ex=self.ttl, nx=True)
+        except RedisError:
+            return self.fallback.begin(key)
+        if created:
+            return "created"
+        value = self.client.get(redis_key)
+        if value == "running" and self.fallback.get(key):
+            return "completed"
+        return "completed" if value and value != "running" else "running"
+
+    def complete(self, key: str, response: QueryResponse) -> None:
+        try:
+            self.client.setex(self._key(key), self.ttl, response.model_dump_json())
+        except RedisError:
+            self.fallback.complete(key, response)
+
+    def fail(self, key: str) -> None:
+        try:
+            self.client.delete(self._key(key))
+        except RedisError:
+            self.fallback.fail(key)
+
+    def get(self, key: str) -> QueryResponse | None:
+        try:
+            value = self.client.get(self._key(key))
+        except RedisError:
+            return self.fallback.get(key)
+        if not value or value == "running":
+            return self.fallback.get(key)
+        try:
+            return QueryResponse.model_validate(json.loads(value))
+        except (json.JSONDecodeError, ValueError, TypeError):
+            return None
