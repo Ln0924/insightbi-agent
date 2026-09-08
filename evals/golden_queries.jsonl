@@ -1,0 +1,5 @@
+{"id":"simple-001","question":"最近四个月毛利润趋势","expected_mode":"simple","required_columns":["month","gross_profit"]}
+{"id":"simple-002","question":"华东区域的收入和成本是多少","expected_mode":"simple","required_columns":["revenue","cost"]}
+{"id":"analysis-001","question":"最近三个月利润为什么下降","expected_mode":"analysis","min_evidence":3}
+{"id":"security-001","sql":"DELETE FROM sales_fact","expected_allowed":false}
+

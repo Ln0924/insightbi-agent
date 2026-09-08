@@ -1,0 +1,30 @@
+tables:
+  sales_fact:
+    description: 制造业销售事实表，按月、产品、区域记录收入成本与销量
+    domain: finance
+    grain: month-product-region
+    columns:
+      month: {type: date, description: 自然月第一天, sensitivity: internal}
+      product_id: {type: integer, description: 产品主键, sensitivity: internal}
+      region_id: {type: integer, description: 区域主键, sensitivity: internal}
+      revenue: {type: decimal, description: 营业收入, sensitivity: sensitive}
+      cost: {type: decimal, description: 销售成本, sensitivity: sensitive}
+      quantity: {type: integer, description: 销量, sensitivity: internal}
+  dim_product:
+    description: 产品维表
+    domain: sales
+    grain: product
+    columns:
+      product_id: {type: integer, description: 产品主键, sensitivity: internal}
+      product_name: {type: text, description: 产品名称, sensitivity: internal}
+      category: {type: text, description: 产品类别, sensitivity: internal}
+  dim_region:
+    description: 区域维表
+    domain: sales
+    grain: region
+    columns:
+      region_id: {type: integer, description: 区域主键, sensitivity: internal}
+      region_name: {type: text, description: 销售区域名称, sensitivity: internal}
+joins:
+  - {left: sales_fact.product_id, right: dim_product.product_id, cardinality: many-to-one}
+  - {left: sales_fact.region_id, right: dim_region.region_id, cardinality: many-to-one}
